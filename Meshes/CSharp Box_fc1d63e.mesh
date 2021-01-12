@@ -1,0 +1,19 @@
+{
+  "FilenameOrUrl": "CSharp Box.obj",
+  "Source": 0,
+  "DefaultMaterialForDisplayReference": {
+    "Reference": {
+      "Guid": "d58a0103-c23e-456e-a742-bcba6bc4e655",
+      "Name": "ai mat"
+    },
+    "IsValidReference": true
+  },
+  "XImportScaleFactor": 1.0,
+  "YImportScaleFactor": 1.0,
+  "ZImportScaleFactor": 1.0,
+  "ComponentId": {
+    "Guid": "fc1d63ef-f7c2-4214-b382-786ce28ac2f7",
+    "Name": "CSharp Box"
+  },
+  "Description": ""
+}

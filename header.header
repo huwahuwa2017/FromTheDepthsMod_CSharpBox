@@ -1,0 +1,9 @@
+{
+  "Authors": "Authors include huwahuwa",
+  "Version": "00000000-0000-0000-0000-000000000000",
+  "ComponentId": {
+    "Guid": "77ee95d7-700e-40fd-8b38-777254291c0e",
+    "Name": "CSharpBox"
+  },
+  "Description": "New description"
+}

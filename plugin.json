@@ -1,0 +1,9 @@
+{
+  "_comments": "",
+  "name": "CSharpBox",
+  "version": "0.0.0",
+  "depends": [],
+  "conflicts": [],
+  "filename": "Source/DLLFiles/CSharpBox.dll",
+  "gameversion": "3.1.5"
+}
