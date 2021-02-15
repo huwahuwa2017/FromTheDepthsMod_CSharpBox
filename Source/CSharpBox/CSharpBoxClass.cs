@@ -3,6 +3,7 @@ using BrilliantSkies.Ui.Displayer;
 using BrilliantSkies.Ui.Tips;
 using System;
 using System.CodeDom.Compiler;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -88,17 +89,20 @@ namespace CSharpBox
 
         public void FixedStep(ITimeStep t)
         {
-            if (!(Running && CompiledStartMethod != null && CompiledUpdateMethod != null)) return;
+            if (!Running || (CompiledStartMethod == null && CompiledUpdateMethod == null))
+            {
+                return;
+            }
 
             try
             {
                 if (RunStartMethod)
                 {
                     RunStartMethod = false;
-                    CompiledStartMethod.Invoke(null, new object[] { this });
+                    CompiledStartMethod?.Invoke(null, new object[] { this });
                 }
 
-                CompiledUpdateMethod.Invoke(null, new object[] { this });
+                CompiledUpdateMethod?.Invoke(null, new object[] { this });
             }
             catch (Exception e)
             {
@@ -142,8 +146,11 @@ namespace CSharpBox
                 }
                 else
                 {
+                    string fileName = Path.GetFileNameWithoutExtension(FilePath);
+                    Console.WriteLine("File name : " + fileName);
+
                     Assembly assembly = results.CompiledAssembly;
-                    Type type = assembly.GetType("Program");
+                    Type type = assembly.GetType(fileName);
 
                     CompiledStartMethod = type.GetMethod("Start", BindingFlags.Static | BindingFlags.NonPublic);
                     CompiledUpdateMethod = type.GetMethod("Update", BindingFlags.Static | BindingFlags.NonPublic);

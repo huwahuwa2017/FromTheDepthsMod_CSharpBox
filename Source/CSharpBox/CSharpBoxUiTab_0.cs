@@ -34,8 +34,12 @@ namespace CSharpBox
             SubjectiveButton<CSharpBoxClass> SubjectiveButton_0 = SubjectiveButton<CSharpBoxClass>.Quick(_focus, "Compile & Start", new ToolTip("Compile"),
                 (CSharpBoxClass c) =>
                 {
-                    c.SetText(File.ReadAllText(c.FilePath));
+                    if (File.Exists(c.FilePath))
+                    {
+                        c.SetText(File.ReadAllText(c.FilePath));
+                    }
                 });
+            SubjectiveButton_0.FadeOut = M.m<CSharpBoxClass>(c => !File.Exists(c.FilePath));
 
             screenSegment_0.AddInterpretter(textInput_0);
             screenSegment_0.AddInterpretter(SubjectiveButton_0);
