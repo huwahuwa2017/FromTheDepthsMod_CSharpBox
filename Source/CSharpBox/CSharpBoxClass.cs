@@ -107,6 +107,7 @@ namespace CSharpBox
             catch (Exception e)
             {
                 Running = false;
+                Log("FixedStep method error catch");
                 ErrorOutput(e);
             }
         }
@@ -139,6 +140,8 @@ namespace CSharpBox
 
                 if (results.Errors.Count > 0)
                 {
+                    Log("CSharpCompiler Error");
+
                     foreach (CompilerError ce in results.Errors)
                     {
                         Log(ce.ToString());
@@ -146,11 +149,11 @@ namespace CSharpBox
                 }
                 else
                 {
-                    string fileName = Path.GetFileNameWithoutExtension(FilePath);
-                    Console.WriteLine("File name : " + fileName);
+                    string className = new StringReader(SourceCode).ReadLine().Remove(0, 2);
+                    Console.WriteLine("Class name : " + className);
 
                     Assembly assembly = results.CompiledAssembly;
-                    Type type = assembly.GetType(fileName);
+                    Type type = assembly.GetType(className);
 
                     CompiledStartMethod = type.GetMethod("Start", BindingFlags.Static | BindingFlags.NonPublic);
                     CompiledUpdateMethod = type.GetMethod("Update", BindingFlags.Static | BindingFlags.NonPublic);
@@ -161,6 +164,7 @@ namespace CSharpBox
             }
             catch (Exception e)
             {
+                Log("Compile method error catch");
                 ErrorOutput(e);
             }
         }

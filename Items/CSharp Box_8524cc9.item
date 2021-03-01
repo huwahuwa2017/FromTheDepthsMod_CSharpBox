@@ -1,4 +1,11 @@
 {
+  "ActiveBlockLink": {
+    "Reference": {
+      "Guid": "00000000-0000-0000-0000-000000000000",
+      "Name": ""
+    },
+    "IsValidReference": false
+  },
   "Sounds": {
     "ViewTheseOptions": false,
     "Sounds": [],
@@ -93,7 +100,7 @@
     "PlaceableOnFortress": true,
     "PlaceableOnStructure": true,
     "PlaceableOnVehicle": true,
-    "PlaceableOnSubConstructable": 1,
+    "PlaceableOnSubConstructable": 0,
     "AutomaticallyGenerateCollider": true,
     "StructuralComponent": false,
     "EmpSusceptibility": 0.4,

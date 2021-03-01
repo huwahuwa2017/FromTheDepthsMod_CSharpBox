@@ -5,6 +5,7 @@ using BrilliantSkies.Ui.Consoles.Interpretters.Subjective.Buttons;
 using BrilliantSkies.Ui.Consoles.Interpretters.Subjective.Texts;
 using BrilliantSkies.Ui.Consoles.Segments;
 using BrilliantSkies.Ui.Tips;
+using System;
 using System.IO;
 
 namespace CSharpBox
@@ -36,7 +37,9 @@ namespace CSharpBox
                 {
                     if (File.Exists(c.FilePath))
                     {
-                        c.SetText(File.ReadAllText(c.FilePath));
+                        string className = Path.GetFileNameWithoutExtension(c.FilePath);
+                        string source = File.ReadAllText(c.FilePath);
+                        c.SetText("//" + className + Environment.NewLine + source);
                     }
                 });
             SubjectiveButton_0.FadeOut = M.m<CSharpBoxClass>(c => !File.Exists(c.FilePath));
