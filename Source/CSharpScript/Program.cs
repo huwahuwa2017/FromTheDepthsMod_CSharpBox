@@ -1,5 +1,7 @@
 ﻿using BrilliantSkies.Common.CarriedObjects;
 using BrilliantSkies.Common.ChunkCreators.Chunks;
+using BrilliantSkies.Core.Constants;
+using BrilliantSkies.Core.Help;
 using BrilliantSkies.Ftd.Constructs.Modules.All.Chunks;
 using BrilliantSkies.Modding;
 using BrilliantSkies.Modding.Types;
@@ -21,38 +23,69 @@ public class Program
     {
         cSharpBox.ClearLogs();
 
-        Lua = new LuaBinding(cSharpBox.MainConstruct as MainConstruct);
+        MainConstruct mainConstruct = cSharpBox.MainConstruct as MainConstruct;
 
+        string outPutFolderPath = Get.ProfilePaths.ProfileRootDir().Append(mainConstruct.GetBlueprintName()).ToString() + string.Format("-{0:yyyy-MM-dd_hh-mm-ss-tt}", DateTime.Now);
+        string texFolderPath = Path.Combine(outPutFolderPath, "Textures");
 
+        Directory.CreateDirectory(outPutFolderPath);
+        Directory.CreateDirectory(texFolderPath);
 
-        foreach (MaterialDefinition materialDefinition in Configured.i.Materials.Components)
+        //TextureDefinition getTexDef(MaterialDefinition I) => Configured.i.Textures.Find(I.ColorTextureReference.Reference.Guid);
+        IEnumerable<TextureDefinition> textureDefinitionList = Configured.i.Materials.Components
+            .Select(I => Configured.i.Textures.Find(I.ColorTextureReference.Reference.Guid))
+            .Where(I => I != null)
+            .Distinct();
+
+        StringBuilder sb = new StringBuilder();
+
+        foreach (TextureDefinition textureDefinition in textureDefinitionList)
         {
-            TextureDefinition textureDefinition = Configured.i.Textures.Find(materialDefinition.ColorTextureReference.Reference.Guid);
+            ModSource modSource = textureDefinition.Source;
 
-            if (textureDefinition != null)
+            if (modSource != ModSource.File && modSource != ModSource.Resources) continue;
+
+            byte[] encodeResult = null;
+
+            try
             {
-                string texPath = SeparatorClean(textureDefinition.FilenameOrUrl);
-                string texName = Path.ChangeExtension(texPath, null);
-
-                cSharpBox.Log(textureDefinition.Source.ToString());
-                cSharpBox.Log("newmtl " + texName);
-                cSharpBox.Log("map_Kd " + texName + ".jpg");
-                cSharpBox.Log(string.Empty);
+                encodeResult = ForcedEncodeToJPG(textureDefinition.Texture.GetTexture());
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                continue;
+            }
+
+            if (encodeResult != null)
+            {
+                string texName = TexNameGenerate(textureDefinition);
+
+                File.WriteAllBytes(Path.Combine(texFolderPath, texName + ".jpg"), encodeResult);
+
+                cSharpBox.Log("newmtl " + texName);
+                cSharpBox.Log("map_Kd " + Path.Combine("Textures", texName + ".jpg"));
+                cSharpBox.Log(string.Empty);
+
+                sb.Append("newmtl " + texName + "\n");
+                sb.Append("map_Kd " + Path.Combine("Textures", texName + ".jpg") + "\n");
+                sb.Append("\n");
+            }
+        }
+
+        using (StreamWriter sw = new StreamWriter(Path.Combine(outPutFolderPath, "Test.mtl")))
+        {
+            sw.Write(sb.ToString());
         }
 
 
 
-        MainConstruct mainConstruct = cSharpBox.MainConstruct as MainConstruct;
         List<AllConstruct> allConstructList = new List<AllConstruct>();
         mainConstruct.AllBasicsRestricted.GetAllConstructsBelowUsAndIncludingUs(allConstructList);
 
         foreach (AllConstruct allConstruct in allConstructList)
         {
-            if (!(allConstruct.Chunks is ConstructableMeshMerger))
-            {
-                continue;
-            }
+            if (!(allConstruct.Chunks is ConstructableMeshMerger)) continue;
 
             Dictionary<MaterialDefinition, List<Mesh>> meshListDictionary = new Dictionary<MaterialDefinition, List<Mesh>>();
 
@@ -61,25 +94,23 @@ public class Program
                 MeshRenderer meshRenderer = iCOR.ObjectItself.GetComponent<MeshRenderer>();
                 MeshFilter meshFilter = iCOR.ObjectItself.GetComponent<MeshFilter>();
 
-                if (meshRenderer != null && meshFilter != null)
+                if (meshRenderer == null || meshFilter == null) continue;
+
+                KeyValuePair<Guid, MaterialDefinition> item = Configured.i.Materials.DictionaryOfComponents.FirstOrDefault(d => d.Value.Material == meshRenderer.sharedMaterial);
+
+                if (item.Equals(default(KeyValuePair<Guid, MaterialDefinition>))) continue;
+
+                if (!meshListDictionary.ContainsKey(item.Value))
                 {
-                    KeyValuePair<Guid, MaterialDefinition> item = Configured.i.Materials.DictionaryOfComponents.FirstOrDefault(d => d.Value.Material == meshRenderer.sharedMaterial);
-
-                    if (!item.Equals(default(KeyValuePair<Guid, MaterialDefinition>)))
-                    {
-                        if (!meshListDictionary.ContainsKey(item.Value))
-                        {
-                            meshListDictionary.Add(item.Value, new List<Mesh>());
-                        }
-
-                        Mesh newMesh = UnityEngine.Object.Instantiate(meshFilter.sharedMesh);
-                        IEnumerable<Vector3> newVertexList = newMesh.vertices.Select(d => meshFilter.transform.localToWorldMatrix.MultiplyPoint(d));
-                        newVertexList = newVertexList.Select(d => allConstruct.myTransform.worldToLocalMatrix.MultiplyPoint(d));
-                        newMesh.SetVertices(newVertexList.ToList());
-
-                        meshListDictionary[item.Value].Add(newMesh);
-                    }
+                    meshListDictionary.Add(item.Value, new List<Mesh>());
                 }
+
+                Mesh newMesh = UnityEngine.Object.Instantiate(meshFilter.sharedMesh);
+                IEnumerable<Vector3> newVertexList = newMesh.vertices.Select(d => meshFilter.transform.localToWorldMatrix.MultiplyPoint(d));
+                newVertexList = newVertexList.Select(d => allConstruct.myTransform.worldToLocalMatrix.MultiplyPoint(d));
+                newMesh.SetVertices(newVertexList.ToList());
+
+                meshListDictionary[item.Value].Add(newMesh);
             }
 
             ConstructableMeshMerger meshMerger = allConstruct.Chunks as ConstructableMeshMerger;
@@ -88,16 +119,12 @@ public class Program
             foreach (KeyValuePair<int, List<ChunkMesh>> chunkMeshListDictionary in meshMerger.D)
             {
                 bool found;
-
                 MaterialDefinition materialDefinition = Configured.i.Materials.FindUsingTheRuntimeId(chunkMeshListDictionary.Key, out found);
 
                 bool flag_0 = chunkMeshListDictionary.Value.Count == 0;
                 bool flag_1 = chunkMeshListDictionary.Value.All(d => d.VertCount == 0);
 
-                if (!found || flag_0 || flag_1)
-                {
-                    continue;
-                }
+                if (!found || flag_0 || flag_1) continue;
 
                 if (!meshListDictionary.ContainsKey(materialDefinition))
                 {
@@ -108,6 +135,19 @@ public class Program
             }
 
 
+
+            int subConstructIndex = allConstruct.PersistentSubConstructIndex;
+            bool isSubConstruct = subConstructIndex != -1;
+
+            Vector3 localPosition = Vector3.zero;
+            Quaternion localRotation = Quaternion.identity;
+
+            if (isSubConstruct)
+            {
+                MainConstruct mc = allConstruct.Main;
+                localPosition = mc.SafeGlobalToLocal(allConstruct.SafePosition);
+                localRotation = mc.SafeGlobalRotationToLocalRotation(allConstruct.SafeRotation);
+            }
 
             List<Mesh> meshList = new List<Mesh>();
 
@@ -128,28 +168,17 @@ public class Program
                     loadVertexCount += mesh.vertexCount;
                 }
 
+                if (isSubConstruct)
+                {
+                    vertices = vertices.Select(I => localRotation * I + localPosition).ToList();
+                }
+
                 TextureDefinition textureDefinition = Configured.i.Textures.Find(meshListDictionaryData.Key.ColorTextureReference.Reference.Guid);
-
-                string texName;
-                string texPath = SeparatorClean(textureDefinition.FilenameOrUrl);
-
-                if (textureDefinition == null)
-                {
-                    texName = "None";
-                }
-                else
-                {
-                    texName = Path.ChangeExtension(texPath, null);
-                }
-
-                cSharpBox.Log("\ntexturePath : " + texPath);
-
-
 
                 Mesh newMesh = new Mesh
                 {
                     indexFormat = UnityEngine.Rendering.IndexFormat.UInt32,
-                    name = texName
+                    name = TexNameGenerate(textureDefinition)
                 };
 
                 newMesh.SetVertices(vertices);
@@ -163,21 +192,34 @@ public class Program
                 cSharpBox.Log("vertexCount : " + newMesh.vertices.Length);
             }
 
-            //MeshToFile(meshList, @"C:\Users\TUF_Z390\Desktop\TestObj\Test" + $" ({OutputCount})" + ".obj");
-            ++OutputCount;
+
+
+            string fileName = $"Test ({OutputCount++})";
+
+            if (subConstructIndex == -1)
+            {
+                fileName = "MainConstruct";
+            }
+            else
+            {
+                fileName = $"SubConstruct_{subConstructIndex}";
+            }
+
+            MeshToFile(meshList, Path.Combine(outPutFolderPath, fileName + ".obj"));
         }
     }
 
     private static void Update(CSharpBoxClass cSharpBox)
     {
+        /*
         Transform myTransform = cSharpBox.MainConstruct.GameObject.myTransform;
         Rigidbody rigidbody = cSharpBox.MainConstruct.GameObject.Rigidbody;
 
-        myTransform.position = new Vector3(0, 10, 0);
-        myTransform.rotation = Quaternion.Euler(0, 0, 0);
+        myTransform.position = new Vector3(10f, 10f, 0);
+        myTransform.rotation = Quaternion.Euler(0, 45f, 0);
         rigidbody.velocity = Vector3.zero;
         rigidbody.angularVelocity = Vector3.zero;
-
+        */
         //Vector3 position = Lua.GetConstructPosition();
         //Lua.LogToHud("Position : " + position.ToString());
     }
@@ -198,10 +240,12 @@ public class Program
 
         for (int index = 0; index < triangles.Length; index += 3)
         {
-            var temp = triangles[index];
+            int temp = triangles[index];
             triangles[index] = triangles[index + 1];
             triangles[index + 1] = temp;
         }
+
+        mesh.SetTriangles(triangles, 0);
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
@@ -213,27 +257,29 @@ public class Program
         StringBuilder sb = new StringBuilder();
         int importVertexCount = 1;
 
-        sb.Append("mtllib " + "Test.mtl");
+        sb.Append("mtllib " + "Test.mtl" + "\n");
 
         foreach (Mesh mesh in meshList)
         {
             sb.Append("\n");
-            sb.Append("\n" + "g " + mesh.name);
-            sb.Append("\n" + "usemtl " + mesh.name);
+            sb.Append("g " + mesh.name + "\n");
+            sb.Append("usemtl " + mesh.name + "\n");
 
             foreach (Vector3 v in mesh.vertices)
             {
-                sb.Append("\n" + $"v {v.x} {v.y} {v.z}");
+                sb.Append($"v {v.x} {v.y} {v.z}" + "\n");
             }
 
+            /*
             foreach (Vector3 v in mesh.normals)
             {
-                sb.Append("\n" + $"vn {v.x} {v.y} {v.z}");
+                sb.Append($"vn {v.x} {v.y} {v.z}" + "\n");
             }
+            */
 
             foreach (Vector3 v in mesh.uv)
             {
-                sb.Append("\n" + $"vt {v.x} {v.y}");
+                sb.Append($"vt {v.x} {v.y}" + "\n");
             }
 
             for (int material = 0; material < mesh.subMeshCount; material++)
@@ -242,7 +288,11 @@ public class Program
 
                 for (int i = 0; i < triangles.Length; i += 3)
                 {
-                    sb.Append(string.Format("\n" + "f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}",
+                    /*
+                    sb.Append(string.Format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}" + "\n",
+                        triangles[i] + importVertexCount, triangles[i + 1] + importVertexCount, triangles[i + 2] + importVertexCount));
+                    */
+                    sb.Append(string.Format("f {0}/{0} {1}/{1} {2}/{2}" + "\n",
                         triangles[i] + importVertexCount, triangles[i + 1] + importVertexCount, triangles[i + 2] + importVertexCount));
                 }
             }
@@ -258,6 +308,37 @@ public class Program
         using (StreamWriter sw = new StreamWriter(filename))
         {
             sw.Write(MeshToString(m));
+        }
+    }
+
+    public static byte[] ForcedEncodeToJPG(Texture2D texture2D)
+    {
+        RenderTexture renderTexture = RenderTexture.GetTemporary(texture2D.width, texture2D.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+        Graphics.Blit(texture2D, renderTexture);
+
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = renderTexture;
+
+        Texture2D copyTexture2D = new Texture2D(texture2D.width, texture2D.height);
+        copyTexture2D.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        copyTexture2D.Apply();
+
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(renderTexture);
+
+        return copyTexture2D.EncodeToJPG();
+    }
+
+    public static string TexNameGenerate(TextureDefinition textureDefinition)
+    {
+        if (textureDefinition == null)
+        {
+            return "None";
+        }
+        else
+        {
+            string texName = SeparatorClean(textureDefinition.FilenameOrUrl);
+            return "[" + textureDefinition.Source.ToString() + "]-[" + texName.Replace(Path.DirectorySeparatorChar.ToString(), "]-[") + "]";
         }
     }
 }
