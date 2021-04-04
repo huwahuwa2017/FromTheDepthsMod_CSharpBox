@@ -4,6 +4,7 @@ using BrilliantSkies.Core.Constants;
 using BrilliantSkies.Ftd.Constructs.Modules.All.Chunks;
 using BrilliantSkies.Modding;
 using BrilliantSkies.Modding.Types;
+using BrilliantSkies.Ui.Special.InfoStore;
 using CSharpBox;
 using System;
 using System.Collections.Generic;
@@ -210,7 +211,7 @@ public class Program
 
     private static void Update(CSharpBoxClass cSharpBox)
     {
-        cSharpBox.Log("UnityEngine Time : " + Time.time);
+        InfoStore.Add("UnityEngine Time : " + Time.time);
     }
 
     public static string SeparatorClean(string path)
