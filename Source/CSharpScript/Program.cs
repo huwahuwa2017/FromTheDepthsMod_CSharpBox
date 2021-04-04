@@ -1,7 +1,6 @@
 ﻿using BrilliantSkies.Common.CarriedObjects;
 using BrilliantSkies.Common.ChunkCreators.Chunks;
 using BrilliantSkies.Core.Constants;
-using BrilliantSkies.Core.Help;
 using BrilliantSkies.Ftd.Constructs.Modules.All.Chunks;
 using BrilliantSkies.Modding;
 using BrilliantSkies.Modding.Types;
@@ -211,17 +210,7 @@ public class Program
 
     private static void Update(CSharpBoxClass cSharpBox)
     {
-        /*
-        Transform myTransform = cSharpBox.MainConstruct.GameObject.myTransform;
-        Rigidbody rigidbody = cSharpBox.MainConstruct.GameObject.Rigidbody;
-
-        myTransform.position = new Vector3(10f, 10f, 0);
-        myTransform.rotation = Quaternion.Euler(0, 45f, 0);
-        rigidbody.velocity = Vector3.zero;
-        rigidbody.angularVelocity = Vector3.zero;
-        */
-        //Vector3 position = Lua.GetConstructPosition();
-        //Lua.LogToHud("Position : " + position.ToString());
+        cSharpBox.Log("UnityEngine Time : " + Time.time);
     }
 
     public static string SeparatorClean(string path)
